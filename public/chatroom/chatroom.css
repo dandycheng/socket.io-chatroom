@@ -1,0 +1,148 @@
+* {
+    background-repeat: no-repeat;
+}
+
+*::selection {
+    background-color: #58FAF4;
+}
+
+html{
+    overflow:hidden
+}
+
+header button {
+    width: 33px;
+    height: 33px;
+    margin: 0 5px;
+    background-size: 50% auto;
+    background-position: center;
+}
+
+main {
+    background-color: #84D2F6;
+    background-size: cover;
+    background-position: 50%;
+}
+
+#end-chat {
+    background-image: url(../assets/svg/end-chat.svg);
+}
+
+#export-chat {
+    background-image: url(../assets/svg/export-chat.svg);
+}
+
+#log-out-btn {
+    background-image: url(../assets/svg/logout.svg);
+    right: 0;
+}
+
+
+#chat-area {
+    overflow: auto;
+    flex:4;
+}
+
+#chat-interactive-area {
+    top:0;
+    margin: 15px;
+    flex:1;
+    align-items: flex-end;
+}
+
+#chat-textbox {
+    border-top-left-radius: 5px;
+    border-bottom-left-radius: 5px;
+    outline: none;
+    overflow: hidden;
+    text-decoration: none;
+    text-transform: none;
+}
+
+#chat-textbox:focus {
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+#users {
+    right:0;
+    transition:all .2s ease-in-out;
+}
+#users-list-toggle{
+    top:0;
+    left:0;
+    width:15px;
+    background-image:url(../assets/svg/arrow_white.svg);
+    background-position: center;
+    background-size:13px auto;
+    cursor: pointer;
+}
+#users-list{
+    list-style-type: none;
+    align-items: flex-start;
+}
+
+.status-indicator{
+    width:8px;
+    height:8px;
+    border-radius: 50%;
+}
+.user{
+    align-items:center;
+}
+#send-btn-wrapper {
+    width: 50px;
+    align-items: flex-end;
+    border-top-right-radius: 5px;
+    border-bottom-right-radius: 5px;
+}
+
+#send-btn {
+    width: 30px;
+    height: 30px;
+    background-image: url(../assets/svg/send.svg);
+    background-size: contain;
+}
+
+
+/* Generated onkeydown in chat text box */
+
+.user-icon {
+    width: 30px;
+    height: 30px;
+    margin: 10px;
+    background-color: #fff;
+    background-image: url(../assets/svg/user-icon.svg);
+    background-position: center;
+    background-size: 60% auto;
+}
+
+.chat-bubble-wrapper {
+    max-width: 50%;
+}
+
+.chat-bubble {
+    background-color: #74b5ff;
+    border-radius: 50px;
+    word-wrap: break-word;
+    word-break: break-all;
+}
+
+.chat-bubble-left {
+    align-items: flex-start;
+}
+
+.chat-bubble-right {
+    align-items: flex-end;
+}
+
+span[class*='badge']{
+    transition: all .2s ease-in-out;
+}
+
+.timestamp-left {
+    align-self: flex-start;
+}
+
+.timestamp-right {
+    align-self: flex-end;
+}

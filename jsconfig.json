@@ -1,0 +1,16 @@
+{
+    "compilerOptions": {
+        "checkJs": false,
+        "module":"commonjs",
+        "allowSyntheticDefaultImports": true,
+        "target": "es6",
+        "baseUrl": "."
+    },
+    "exclude": [
+        "node_modules",
+    ],
+    "include": [
+        "services/*",
+        "public/*"
+    ]
+}
