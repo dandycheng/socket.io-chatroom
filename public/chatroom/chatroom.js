@@ -11,12 +11,15 @@ const logOutBtn = document.getElementById('log-out-btn')
 const users = document.getElementById('users')
 const usersList = document.getElementById('users-list')
 const userListToggle = document.getElementById('users-list-toggle')
+const responseMsg = document.getElementById('response-msg')
+const overlay = document.getElementById('overlay')
 let userId = localStorage.userId
 let uniqueId
 
 let url = new URL(window.location)
 let roomId = url.searchParams.get('roomId')
 function initChatroom() {
+    modifyClassName(['visible'], ['invisible'], { id: 'overlay' })
     chatArea.innerHTML = ''
     new Promise(function (resolve, reject) {
         const getFirebase = setInterval(() => {
@@ -50,9 +53,12 @@ function initChatroom() {
                         modifyClassName(['badge-info'], ['badge-light'], { id: messageId })
                     })
                     socket.on('leaveRoomAck', function (response) {
-                        console.log('LEFT ROOM',response)
-                        if (response.status > 0)
+                        console.log('LEFT ROOM', response)
+                        if (response.status > 0){
+                            responseMsg.innerText = 'Leaving chatroom'
+                            modifyClassName(['visible'], ['invisible'], { id: 'overlay' })
                             window.location = `${window.origin}/dashboard/dashboard.html`
+                        }
                     })
 
 
@@ -62,25 +68,31 @@ function initChatroom() {
                         socket.emit('connection', { userToken: token, roomId: roomId })
                     })
                     socket.on('updateUserStatus', function (userStatusData) {
-                        console.log(userStatusData)
-                        if(userStatusData.isParticipant){
+                        if (userStatusData.isParticipant) {
                             if (userStatusData.isOnline)
                                 modifyClassName(['bg-success'], ['bg-secondary'], { id: userStatusData.userId })
                             else
                                 modifyClassName(['bg-secondary'], ['bg-success'], { id: userStatusData.userId })
-                        }else{
-                            removeUserFromList(userStatusData.userId)
+                        } else {
+                            // TODO: (Fix) Remove user from users list when leaving room, check conflict between "disconnect" and "updateUserStatus"
+                            if(userStatusData.isParticipant !== undefined)
+                                removeUserFromList(userStatusData.userId)
                         }
                     })
                     socket.on('disconnect', function () {
+                        responseMsg.innerText = 'DISCONNECTED\nPlease check your connection'
+                        modifyClassName(['visible'], ['invisible'], { id: 'overlay' })
                         modifyClassName(['bg-secondary'], ['bg-success'], { id: userId })
                     })
                     socket.on('reconnect', function () {
-                        socket.removeAllListeners()
-                        initChatroom()
                         modifyClassName(['bg-success'], ['bg-secondary'], { id: userId })
                         chatArea.innerHTML = ''
-                        getChatroomData()
+                        responseMsg.innerText = 'RECONNECTED\nReinitializing chatroom'
+                        modifyClassName(['visible'], ['invisible'], { id: 'overlay' })
+                        
+                        // Reinitialize chatroom
+                        socket.removeAllListeners()
+                        initChatroom()
                     })
                     getChatroomData()
                 })
@@ -124,6 +136,7 @@ function getChatroomData() {
                         for (let x of chatroomData.participants)
                             appendUsersList(x.displayName, x.userId, x.status)
                         resolve(true)
+                        modifyClassName(['invisible'], ['visible'], { id: 'overlay' })
                     })
                     .catch(err => reject(err))
             })
@@ -147,7 +160,7 @@ endChat.onclick = function () {
 exportChat.onclick = () => {
     fetch(`${window.origin}/exportChatData?roomId=${roomId}`)
         .then(function (response) {
-            if(response.status === 200)
+            if (response.status === 200)
                 window.location = `${window.origin}/exportChatData?roomId=${roomId}`
         })
 }

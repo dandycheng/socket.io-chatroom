@@ -24,6 +24,14 @@ main {
     background-position: 50%;
 }
 
+#overlay{
+    background-color: rgba(0,0,0,0.3);
+    left:0;
+    top:0;
+    align-items: center;
+    z-index:2;
+}
+
 #end-chat {
     background-image: url(../assets/svg/end-chat.svg);
 }

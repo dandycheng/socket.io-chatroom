@@ -22,7 +22,7 @@ exports.initSocket = function (socket) {
         firebase.verifyIdToken(connectionData.userToken).then(function (userData) {
             db.hasKeyData('chatroomDb', 'chatroom', { roomId: connectionData.roomId, participants: connectionData.userId })
                 .then(function (response) {
-                    console.log('RES',response)
+                    console.log('RES', response)
                     if (!response)
                         socket.broadcast.emit('newParticipant', { id: userData.user_id, displayName: userData.name, status: 'online' })
                 })
@@ -89,7 +89,7 @@ exports.initSocket = function (socket) {
     // Socket connection
     socket.on('disconnect', function () {
         firebase.verifyIdToken(nspData.userToken).then(function (userData) {
-            socket.broadcast.emit('updateUserStatus', { userId: userData.user_id, isOnline: false})
+            socket.broadcast.emit('updateUserStatus', { userId: userData.user_id, isOnline: false })
             socket.removeAllListeners()
         })
     })
