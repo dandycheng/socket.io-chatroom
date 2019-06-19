@@ -22,6 +22,7 @@ main {
     background-color: #84D2F6;
     background-size: cover;
     background-position: 50%;
+    align-items: center;
 }
 
 #end-chat {
