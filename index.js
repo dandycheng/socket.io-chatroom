@@ -14,26 +14,9 @@ const socketIo = require('./services/socket.io')
 
 const util = require('./util/util')
 
-let nsps
-
-// db.getCollectionData('nspDb', 'nsp', {})
-//     .then(function (nspList) {
-//         nsps = nspList
-//         util.log(22, 'NSPS (index.js)', nsps)
-//     })
-
-
-//on server start, connect to DB and get namespace, then io.of() namespace.
-
-
-
-
 app.use(bodyParser.json({ extended: true }))
 app.use('/', express.static('public'))
 
-
-// ! Update user status in DB
-// app.post('/signIn')
 
 app.post('/signUp', function (req, res) {
     // Creates status identifier to track user's online status
@@ -42,8 +25,9 @@ app.post('/signUp', function (req, res) {
         displayName: signUpData.displayName,
         userId: signUpData.userId,
         status: 'offline'
-    }).then(function () {
-        res.status(200).send()
+    }).then(function (response) {
+        if (response)
+            res.status(200).send()
     })
         .catch(err => console.log(err))
 })
@@ -52,7 +36,6 @@ app.post('/signUp', function (req, res) {
 
 app.get('/chatroom', function (req, res) {
     let roomId = req.query.roomId.replace(/"/g, '')
-    util.log(68, 'FETCH (/chatroom socket)')
     if (!roomId) {
         return res.status(200).send({
             status: -1,
@@ -63,16 +46,11 @@ app.get('/chatroom', function (req, res) {
         let newNameSpace = {}
         io.of(`/chatroom/${roomId}`)
             .once('connect', function (socket) {
-                util.log(66, 'NAMESPACES', Object.keys(io.nsps))
-                util.log(65, 'NSP CREATED (/chatroom/<joinId>)')
                 socketIo.initSocket(socket)
-            })
-            .on('disconnect', function () {
-                util.log(71, 'DISCONNECTED FROM NSP')
             })
         io.of(`/chatroom/${roomId}`)
         newNameSpace[roomId] = { nsp: `/chatroom/${roomId}` }
-        db.insertDocument('nspDb', 'nsp', { nsps: newNameSpace })
+        db.insertIfUnique('nspDb', 'nsp', { nsp: `/chatroom/${roomId}` }, newNameSpace)
 
         return res.status(200).send({
             status: 1,
@@ -81,15 +59,9 @@ app.get('/chatroom', function (req, res) {
     }
 })
 
-app.post('/test', function (req, res) {
-    console.log('/TEST')
-    console.log(req.body)
-})
-
 app.post("/checkRoomExistence", function (req, res) {
     let postData = req.body
     let query = {}
-    util.log(95, 'postData (/checkRoomExistence)', postData)
     if (postData.isJoin)
         query.roomId = postData.roomId
     else
@@ -98,7 +70,6 @@ app.post("/checkRoomExistence", function (req, res) {
         .then(function (response) {
             console.log(query)
             db.getOneDocumentData('chatroomDb', 'chatroom', query).then(function (roomData) {
-                util.log(103, 'ROOM DATA', roomData)
                 if (!roomData) {
                     res.status(200).send({
                         status: 1,
@@ -130,7 +101,7 @@ app.post('/newChatroom', function (req, res) {
                     createdAt: Date.now(),
                     messages: []
                 }).then(function (response) {
-                    if (response.result.n === 1)
+                    if (response)
                         res.status(200).send({
                             result: 'room-create/room-created',
                             data: { roomId: newRoomId }
@@ -166,34 +137,38 @@ app.post('/getChatroomData', function (req, res) {
      *  Gets chatroom data upon creating or joining, returns messages and participants' display names
      */
     /** Includes "roomId" and "userToken" */let postData = req.body
-
-    util.log(173, 'postData (/getChatroomData)', postData)
     firebase.verifyIdToken(postData.userToken).then(function (token) {
         if (token) {
-            // Update user online status on chatroom join
-            db.updateOneDocField('usersDb', 'users', { userId: token.user_id }, { status: 'online' })
-                .catch(err => console.log(err))
-            db.getOneDocumentData('chatroomDb', 'chatroom', {
-                roomId: postData.roomId
-            })
-                .then(function (chatroomData) {
-                    util.log(182, 'Find chatroom data in DB', chatroomData)
-                    firebase.getUserData(chatroomData.participants)
-                        .then(userData => {
-                            util.log(178, 'userData', userData)
-                            res.status(200).send({ messages: chatroomData.messages, participants: userData })
+            // Check if user is a participant
+            db.hasKeyData('chatroomDb', 'chatroom', { participants: token.user_id }).then(function (result) {
+                if (result) {
+                    // Update user online status on chatroom join
+                    db.updateOneDocField('usersDb', 'users', { userId: token.user_id }, { status: 'online' })
+                        .catch(err => console.log(err))
+                    db.getOneDocumentData('chatroomDb', 'chatroom', {
+                        roomId: postData.roomId
+                    })
+                        .then(function (chatroomData) {
+                            firebase.getUserData(chatroomData.participants)
+                            .then(userData => {
+                                    console.log(chatroomData.participants)
+                                    res.status(200).send({ messages: chatroomData.messages, participants: userData })
+                                })
                         })
-                })
-                .catch(err => console.log(err))
+                        .catch(err => console.log(err))
+                } else
+                    res.status(403).send()
+            })
         }
     })
 })
 
 app.get('/exportChatData', function (req, res) {
-    let roomId = req.body.roomId
-    db.getCollectionData('chatroom', { roomId: roomId })
+    util.log(179,'/exportChatData',req.query)
+    let roomId = req.query.roomId
+    db.getCollectionData('chatroomDb','chatroom', { roomId: roomId })
         .then(function (data) {
-            exportChatData = JSON.stringify(data, null, 2)
+            res.write(JSON.stringify(data, null, 2))
             res.end()
         })
 })

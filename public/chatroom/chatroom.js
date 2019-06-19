@@ -16,46 +16,79 @@ let uniqueId
 
 let url = new URL(window.location)
 let roomId = url.searchParams.get('roomId')
-new Promise(function (resolve, reject) {
-    const getFirebase = setInterval(() => {
-        console.log('FIREBASE LOADING')
-        if (firebase.auth().currentUser) {
-            clearInterval(getFirebase)
-            resolve(getFirebase)
-        }
-    }, 500)
-})
-    .then(function () {
-        Promise.all([initChatroom(), getChatroomData()])
-            .then(function (values) {
-                console.log(values)
-                socket = io(`/chatroom/${roomId}`)
-
-                // Chatroom updates
-                socket.on('updateUserStatus', function (userId) {
-                    modifyClassName(['bg-secondary'], ['bg-success'], { id: userId })
-                })
-                socket.on('receiveNewMessage', function (data) {
-                    console.log(data)
-                    let isRespondent = data.payload.author !== userId
-                    if (isRespondent)
-                        generateChatBubble(data.payload.displayName, data.payload.content, isRespondent, true, data.payload.timestamp)
-                })
-                socket.on('notifyMessageSent', function () {
-                    console.log('sent')
-                    modifyClassName(['badge-info'], ['badge-light'], { querySelector: '#chat-area > div:last-child span' })
-                })
-
-                // Socket connection
-                socket.on('disconnect', function () {
-                    modifyClassName(['bg-secondary'], ['bg-success'], { id: uniqueId })
-                })
-                socket.on('reconnect', function () {
-                    modifyClassName(['bg-success'], ['bg-secondary'], { id: uniqueId })
-                })
-            })
-    })
 function initChatroom() {
+    chatArea.innerHTML = ''
+    new Promise(function (resolve, reject) {
+        const getFirebase = setInterval(() => {
+            console.log('FIREBASE LOADING')
+            if (firebase.auth().currentUser) {
+                clearInterval(getFirebase)
+                resolve(getFirebase)
+            }
+        }, 500)
+    })
+        .then(function () {
+            establishConnection()
+                .then(function (values) {
+                    console.log(values)
+                    socket = io(`/chatroom/${roomId}`)
+
+                    // Chatroom updates
+
+                    socket.on('newParticipant', function (data) {
+                        console.log('NEW PARTICIPANT')
+                        appendUsersList(data.displayName, data.userId, data.status)
+                    })
+                    socket.on('receiveNewMessage', function (data) {
+                        console.log(data)
+                        let isRespondent = data.payload.author !== userId
+                        if (isRespondent)
+                            generateChatBubble(data.payload.displayName, data.payload.content, isRespondent, true, data.payload.timestamp)
+                    })
+                    socket.on('notifyMessageSent', function (messageId) {
+                        console.log('sent')
+                        modifyClassName(['badge-info'], ['badge-light'], { id: messageId })
+                    })
+                    socket.on('leaveRoomAck', function (response) {
+                        console.log('LEFT ROOM',response)
+                        if (response.status > 0)
+                            window.location = `${window.origin}/dashboard/dashboard.html`
+                    })
+
+
+                    // Socket connection
+                    // To track user online / offline status change
+                    firebase.auth().currentUser.getIdToken().then(function (token) {
+                        socket.emit('connection', { userToken: token, roomId: roomId })
+                    })
+                    socket.on('updateUserStatus', function (userStatusData) {
+                        console.log(userStatusData)
+                        if(userStatusData.isParticipant){
+                            if (userStatusData.isOnline)
+                                modifyClassName(['bg-success'], ['bg-secondary'], { id: userStatusData.userId })
+                            else
+                                modifyClassName(['bg-secondary'], ['bg-success'], { id: userStatusData.userId })
+                        }else{
+                            removeUserFromList(userStatusData.userId)
+                        }
+                    })
+                    socket.on('disconnect', function () {
+                        modifyClassName(['bg-secondary'], ['bg-success'], { id: userId })
+                    })
+                    socket.on('reconnect', function () {
+                        socket.removeAllListeners()
+                        initChatroom()
+                        modifyClassName(['bg-success'], ['bg-secondary'], { id: userId })
+                        chatArea.innerHTML = ''
+                        getChatroomData()
+                    })
+                    getChatroomData()
+                })
+        })
+}
+initChatroom()
+
+function establishConnection() {
     return new Promise(function (resolve, reject) {
         fetch(`${window.origin}/chatroom?roomId=${roomId}`)
             .then(response => response.json())
@@ -99,26 +132,23 @@ function getChatroomData() {
 }
 
 
-// TODO: (Fix) Duplicate participants
-// TODO: (Fix) Message sent indicator not changing
-// ? Assign message id?
-
-// TODO: (Fix) Message added more than once
-//socket.on list
-
-
-
 // Event listeners (DOM)
 document.body.onload = () => adjustMainContent()
 document.body.onresize = () => adjustMainContent()
 
 // #region      Event Listeners (Elements)
 
+endChat.onclick = function () {
+    firebase.auth().currentUser.getIdToken().then(function (token) {
+        socket.emit('leaveRoom', token)
+    })
+}
+
 exportChat.onclick = () => {
-    fetch(`/exportChatData?roomId=${roomId}`)
+    fetch(`${window.origin}/exportChatData?roomId=${roomId}`)
         .then(function (response) {
-            if (response.status === 200)
-                window.location = `${window.origin}/exportedChatData`
+            if(response.status === 200)
+                window.location = `${window.origin}/exportChatData?roomId=${roomId}`
         })
 }
 
@@ -146,7 +176,7 @@ chatTextbox.onkeydown = e => {
 sendBtn.onclick = () => {
     let userDisplayName = firebase.auth().currentUser.displayName
     let messageContent = chatTextbox.innerText.trim()
-    generateChatBubble(userDisplayName, messageContent,false, false)
+    generateChatBubble(userDisplayName, messageContent, false, false)
 }
 
 logOutBtn.onclick = () => {
@@ -181,7 +211,8 @@ function adjustMainContent() {
 function generateChatBubble(displayName, content, isRespondent, isFetch, timestamp = null) {
 
     const date = new Date()
-
+    if (timestamp)
+        date.setTime(timestamp)
 
     let chatBubbleposition = (isRespondent) ? 'chat-bubble-left' : 'chat-bubble-right'
     let userIconOrder = (isRespondent) ? 'order-1' : 'order-3'
@@ -196,7 +227,7 @@ function generateChatBubble(displayName, content, isRespondent, isFetch, timesta
                    <div class='chat-bubble' style='background-color:#3292ff'>
                         <p class='p-3 px-4 m-0' style='color:#fff'></p>
                     </div>
-                    <span class='${(isRespondent) ? "timestamp-left" : "timestamp-right"} mt-2 position-relative badge badge-pill ${(isFetch) ? "badge-info" : "badge-light"}'>${timestamp ? Date(timestamp).replace(/\sGMT.*/g, '') : date.toLocaleString()}</span>
+                    <span class='${(isRespondent) ? "timestamp-left" : "timestamp-right"} mt-2 position-relative badge badge-pill ${(isFetch) ? "badge-info" : "badge-light"}'>${date.toLocaleString()}</span>
                 </div>
                 <div class='user-icon rounded-circle bg-light ${userIconOrder}'></div>
             </div>
@@ -216,8 +247,9 @@ function generateChatBubble(displayName, content, isRespondent, isFetch, timesta
     chatTextbox.innerText = ''
     chatArea.scrollBy(0, chatArea.clientHeight + chatArea.scrollHeight) // Scroll to latest message
     if (!isFetch) {
-        socket.emit('getMessageId')
-        sendMessageToDb(userId, content, Date.now(), Math.round(Math.random() * Math.pow(10, 10)))
+        let newMessageId = Math.round(Math.random() * Math.pow(10, 10))
+        messageComponents.timestamp.id = newMessageId
+        sendMessageToDb(userId, content, Date.now(), newMessageId)
     }
 }
 
@@ -229,7 +261,7 @@ function sendMessageToDb(author, messageContent, timestamp, messageId) {
      *  @param {string} displayName Message author's display name
      *  @param {int} timestamp Date.now()
      */
-    
+
     let userToken
     firebase.auth().currentUser.getIdToken().then(token => userToken = token)
         .then(function () {
@@ -274,6 +306,11 @@ function appendUsersList(username, id, status) {
             </li>
         `
     }
+}
+
+function removeUserFromList(id) {
+    let user = document.getElementById(id).parentElement
+    user.parentElement.removeChild(user)
 }
 
 userListToggle.onclick = function () {

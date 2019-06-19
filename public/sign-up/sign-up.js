@@ -28,6 +28,7 @@ signUpBtn.onclick = e => {
 		firebase.auth().createUserWithEmailAndPassword(emailInput.value, passwdInput.value)
 			.then(function () {
 				firebase.auth().currentUser.updateProfile({ displayName: usernameInput.value })
+				modifyClassName(['text-success'], ['text-danger'], { id: 'response-msg' })
 				responseMsg.textContent = 'Successfully registered!'
 				fetch('http://localhost:8080/signUp', {
 					method: 'POST',
@@ -41,7 +42,6 @@ signUpBtn.onclick = e => {
 				})
 					.then(function (response) {
 						if (response.status === 200) {
-							modifyClassName(['text-success'], ['text-danger'], { id: 'response-msg' })
 							firebase.auth().signOut().then(function () {
 								setTimeout(() => {
 									window.location = `${window.origin}/login/login.html`

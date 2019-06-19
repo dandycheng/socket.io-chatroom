@@ -25,14 +25,8 @@ function signIn() {
                 firebase.auth().onAuthStateChanged(user => {
                     if (user){
                         firebase.auth().currentUser.getIdToken().then(function(token){
-                            localStorage.userData = JSON.stringify({
-                                userId: firebase.auth().currentUser.uid,
-                                username: firebase.auth().currentUser.displayName,
-                                userToken:token,
-                                email: firebase.auth().currentUser.email
-                            })
+                            window.location = 'http://localhost:8080/dashboard/dashboard.html'
                         })
-                        window.location = 'http://localhost:8080/dashboard/dashboard.html'
                     }
                 })
             })

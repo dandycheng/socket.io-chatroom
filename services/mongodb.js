@@ -1,4 +1,5 @@
 const MongoClient = require('mongodb').MongoClient;
+const util = require('../util/util');
 
 // Initialize chatroom collection
 (function () {
@@ -58,8 +59,9 @@ exports.hasKeyData = function (/**@type string*/database,/**@type string */colle
         MongoClient.connect('mongodb://localhost:27017', { useNewUrlParser: true }, function (err, db) {
             let dbObj = db.db(database)
             dbObj.collection(collection).findOne(query).then(function (result) {
-                if (result !== null)
-                    resolve({ documentExists: result !== null, ...result })
+                console.log(result)
+                if (result)
+                    resolve(getData ? { documentExists: result !== null, ...result } : true)
                 else
                     resolve(false)
             })
@@ -77,7 +79,7 @@ exports.insertDocument = function (/**@type string*/database,/**@type string */c
             let dbObj = db.db(database)
             dbObj.collection(collection).insertOne(data, function (err, result) {
                 if (err) reject(err)
-                resolve(result)
+                resolve(result.insertedCount === 1)
             })
             db.close()
         })
@@ -87,33 +89,96 @@ exports.insertDocument = function (/**@type string*/database,/**@type string */c
 /**
  *  Updates existing document data, creates it if it doesn't exist in the queried document
  *  
- *  @returns Promise --> resolve(<result>), reject(<error>)
+ *  @returns Promise --> resolve(<boolean>), reject(<error>)
  */
 exports.insertDocumentData = function (/**@type string*/database,/**@type string */collection,/**@type {{query:*=}} */ query,/**@type {{data:*=}} */ data) {
 
     return new Promise(function (resolve, reject) {
         MongoClient.connect('mongodb://localhost:27017/', { useNewUrlParser: true }, function (err, db) {
-            let dbOj = db.db(database)
-            dbOj.collection(collection).updateOne(query, { $push: data }, function (err, result) {
+            let dbObj = db.db(database)
+            dbObj.collection(collection).updateOne(query, { $push: data }, function (err, result) {
                 if (err) reject(err)
-                resolve(result)
+                resolve(result.modifiedCount > 0)
             })
             db.close()
         })
     })
 }
-
+/**
+ *  Updates a document's field based on query
+ * 
+ *  @returns Promise --> resolve(<boolean>), reject(<error>)
+ */
 exports.updateOneDocField = function (/**@type string*/database,/**@type string */collection,/**@type {{query:*=}} */ query,/**@type {{field:*=}} */ field) {
     return new Promise(function (resolve, reject) {
         MongoClient.connect('mongodb://localhost:27017/', { useNewUrlParser: true }, function (err, db) {
             let dbObj = db.db(database)
             dbObj.collection(collection).updateOne(query, { $set: field }, function (err, result) {
                 if (err) reject(err)
-                resolve(result)
+                resolve(result.modifiedCount > 0)
             })
+            db.close()
         })
     })
 }
+/**
+ *  Deletes a document based on query, element value specified is removed
+ * 
+ *  @returns Promise --> resolve(<boolean>), reject(<error>)
+ */
+exports.deleteOneDocument = function (/**@type string*/database,/**@type string */collection,/**@type {{query:*=}} */ query) {
+    return new Promise(function (resolve, reject) {
+        MongoClient.connect('mongodb://localhost:27017/', { useNewUrlParser: true }, function (err, db) {
+            let dbObj = db.db(database)
+            dbObj.collection(collection).deleteOne(query, function (err, result) {
+                if (err) reject(err)
+                resolve(result.deletedCount > 0)
+            })
+            db.close()
+        })
+    })
+}
+
+
+/**
+ *  Deletes one array element based on query, element value specified is removed
+ * 
+ *  @returns Promise --> resolve(<boolean>), reject(<error>)
+ */
+exports.deleteOneArrayElement = function (/**@type string*/database,/**@type string */collection,/**@type {{query:*=}} */ query,/**@type {{value:*=}} */ value) {
+    return new Promise(function (resolve, reject) {
+        MongoClient.connect('mongodb://localhost:27017/', { useNewUrlParser: true }, function (err, db) {
+            let dbObj = db.db(database)
+            dbObj.collection(collection).updateOne(query, { $pull: value }, function (err, result) {
+                if (err) reject(err)
+                if(result)
+                    resolve(result.modifiedCount > 0)
+            })
+            db.close()
+        })
+    })
+}
+
+
+/**
+ *  Inserts document if it query does not match
+ * 
+ *  @returns Promise --> resolve(<boolean>), reject(<error>)
+ */
+exports.insertIfUnique = function (/**@type string*/database,/**@type string */collection,/**@type {{query:*=}} */ query,/**@type {{data:*=}} */ data) {
+    return new Promise(function(resolve,reject){
+        exports.hasKeyData(database,collection,query).then(function(response){
+            if(!response){
+                exports.insertDocument(database,collection,query,data).then(function(result){
+                    if(result)
+                        resolve(result)
+                }).catch(err => reject(err))
+            }else
+                resolve(response)
+        }).catch(err => reject(err))
+    })
+}
+
 
 
 /* FOR DEBUGGING */
@@ -122,8 +187,6 @@ exports.updateOneDocField = function (/**@type string*/database,/**@type string 
  *  For debugging only, REMOVE LATER
  */
 exports.getAllDocuments = function (/**@type string */collection) {
-
-
     MongoClient.connect('mongodb://localhost:27017', { useNewUrlParser: true }, function (err, db) {
         let dbObj = db.db('chatroomDb')
         dbObj.collection(collection).find().toArray(function (err, result) {
@@ -131,4 +194,5 @@ exports.getAllDocuments = function (/**@type string */collection) {
         })
     })
 }
+
 
