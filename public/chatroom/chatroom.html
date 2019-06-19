@@ -17,8 +17,10 @@
             </div>
             <button id='log-out-btn' class='btn m-0'></button>
         </header>
-       <main class='w-100 d-flex flex-row justify-content-center'>
-           <code id='response-msg' class='bg-light shadow rounded p-4 text-center position-absolute mx-auto text-dark visible'>Initializing chatroom</code>
+       <main class='w-100 d-flex flex-row'>
+           <div id='overlay' class='w-100 h-100 d-flex justify-content-center position-absolute'>
+               <code id='response-msg' class='bg-light shadow rounded p-4 text-center text-dark'>Initializing chatroom</code>
+           </div>
             <div id='chat-components' class='h-100 w-100 pr-5 p-2 d-flex flex-column justify-content-between'>
                 <section id='chat-area' class='d-flex flex-column w-100'></section>
                 <div id='chat-interactive-area' class='w-100 d-flex flex-row'>
