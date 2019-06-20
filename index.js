@@ -44,7 +44,6 @@ app.get('/chatroom', function (req, res) {
         })
     }
     if (roomId !== null) {
-        let newNameSpace = {}
         io.of(`/chatroom/${roomId}`)
             .once('connect', function (socket) {
                 socketIo.initSocket(socket)
