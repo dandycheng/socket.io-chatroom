@@ -57,8 +57,5 @@ signUpBtn.onclick = e => {
 				}
 				responseMsg.textContent = errorMessages[err.code]
 			})
-	} else {
-		responseMsg.textContent = 'Fields cannot be empty'
-		modifyClassName(['text-danger'], ['text-success'], { id: 'response-msg' })
 	}
 }

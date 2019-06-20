@@ -59,8 +59,7 @@ exports.hasKeyData = function (/**@type string*/database,/**@type string */colle
         MongoClient.connect('mongodb://localhost:27017', { useNewUrlParser: true }, function (err, db) {
             let dbObj = db.db(database)
             dbObj.collection(collection).findOne(query).then(function (result) {
-                console.log(result)
-                if (result)
+                if (result !== null)
                     resolve(getData ? { documentExists: result !== null, ...result } : true)
                 else
                     resolve(false)
@@ -98,7 +97,10 @@ exports.insertDocumentData = function (/**@type string*/database,/**@type string
             let dbObj = db.db(database)
             dbObj.collection(collection).updateOne(query, { $push: data }, function (err, result) {
                 if (err) reject(err)
-                resolve(result.modifiedCount > 0)
+                if(result)
+                    resolve(result.modifiedCount > 0)
+                else
+                    resolve(false)
             })
             db.close()
         })
@@ -109,18 +111,24 @@ exports.insertDocumentData = function (/**@type string*/database,/**@type string
  * 
  *  @returns Promise --> resolve(<boolean>), reject(<error>)
  */
+// ! fix
 exports.updateOneDocField = function (/**@type string*/database,/**@type string */collection,/**@type {{query:*=}} */ query,/**@type {{field:*=}} */ field) {
+
     return new Promise(function (resolve, reject) {
         MongoClient.connect('mongodb://localhost:27017/', { useNewUrlParser: true }, function (err, db) {
             let dbObj = db.db(database)
             dbObj.collection(collection).updateOne(query, { $set: field }, function (err, result) {
                 if (err) reject(err)
-                resolve(result.modifiedCount > 0)
+                if(result)
+                    resolve(result.modifiedCount > 0)
+                else
+                    resolve(false)
             })
             db.close()
         })
     })
 }
+
 /**
  *  Deletes a document based on query, element value specified is removed
  * 

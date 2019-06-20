@@ -24,12 +24,22 @@ function signIn() {
             .then(() => {
                 firebase.auth().onAuthStateChanged(user => {
                     if (user){
+                        errorMsg.classList.add('invisible')
                         firebase.auth().currentUser.getIdToken().then(function(token){
                             window.location = 'http://localhost:8080/dashboard/dashboard.html'
                         })
                     }
                 })
             })
-            .catch(err => console.log(err))
+            .catch(function(err){
+                console.log(err)
+                errorMsg.classList.remove('invisible')
+                const errorMsgs = {
+                    'auth/user-not-found':'This email is not yet registered',
+                    'auth/invalid-email':'Invalid email format',
+                    'auth/wrong-password':'Incorrect username or password'
+                }
+                errorMsg.innerText = errorMsgs[err.code]
+            })
     })
 }

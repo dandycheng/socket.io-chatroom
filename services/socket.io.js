@@ -18,14 +18,8 @@ exports.initSocket = function (socket) {
     socket.on('connection', function (connectionData) {
         nspData.userToken = connectionData.userToken
         nspData.roomId = connectionData.roomId
-
         firebase.verifyIdToken(connectionData.userToken).then(function (userData) {
-            db.hasKeyData('chatroomDb', 'chatroom', { roomId: connectionData.roomId, participants: connectionData.userId })
-                .then(function (response) {
-                    console.log('RES', response)
-                    if (!response)
-                        socket.broadcast.emit('newParticipant', { id: userData.user_id, displayName: userData.name, status: 'online' })
-                })
+            socket.broadcast.emit('userJoin', { userId: userData.user_id, displayName: userData.name, status: 'online' })
         })
     })
 
@@ -53,23 +47,22 @@ exports.initSocket = function (socket) {
             })
     })
 
-
     socket.on('leaveRoom', function (token) {
         // TODO: Update users list on leave
         firebase.verifyIdToken(token).then(function (userData) {
-            console.log(userData)
+            util.log(60, 'leaveRoom', userData)
             db.deleteOneArrayElement('chatroomDb', 'chatroom', { participants: userData.user_id }, { participants: userData.user_id })
                 .then(function (result) {
                     if (result) {
-                        io.to()
-                        socket.emit('leaveRoomAck', {
-                            status: 1,
-                            result: 'chatroom/left-chatroom'
-                        })
+                        console.log('UPDATE USER STATUS')
                         socket.broadcast.emit('updateUserStatus', {
                             userId: userData.user_id,
                             isOnline: false,
                             isParticipant: false
+                        })
+                        socket.emit('leaveRoomAck', {
+                            status: 1,
+                            result: 'chatroom/left-chatroom'
                         })
                     } else {
                         socket.emit('leaveRoomAck', {
@@ -88,21 +81,17 @@ exports.initSocket = function (socket) {
     })
     // Socket connection
     socket.on('disconnect', function () {
+        console.log('USER DISCONNECTED')
         firebase.verifyIdToken(nspData.userToken).then(function (userData) {
-            socket.broadcast.emit('updateUserStatus', { userId: userData.user_id, isOnline: false })
+            db.updateOneDocField('usersDb', 'users', { userId: userData.user_id }, { status: 'offline' })
+            db.hasKeyData('chatroomDb', 'chatroom', { participants: userData.user_id }).then(function (response) {
+                console.log(response)
+                if (response)
+                    socket.broadcast.emit('updateUserStatus', { userId: userData.user_id, isOnline: false, isParticipant: response })
+            })
             socket.removeAllListeners()
         })
     })
-
-    /**
-     *  TODO:
-     *      - Add auto reconnect feature
-     *          > Refreshing messages on reconnect
-     *      - Add user status in chatroom (online / offline)
-     *      - Mongoose
-     *
-     */
-
 }
 
 

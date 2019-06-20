@@ -18,87 +18,83 @@ let uniqueId
 
 let url = new URL(window.location)
 let roomId = url.searchParams.get('roomId')
-function initChatroom() {
-    modifyClassName(['visible'], ['invisible'], { id: 'overlay' })
+
+firebase.auth().onAuthStateChanged(function (user) {
+    if (user){
+        initChatroom()
+    }
+})
+
+function initChatroom(){
+    
     chatArea.innerHTML = ''
-    new Promise(function (resolve, reject) {
-        const getFirebase = setInterval(() => {
-            console.log('FIREBASE LOADING')
-            if (firebase.auth().currentUser) {
-                clearInterval(getFirebase)
-                resolve(getFirebase)
-            }
-        }, 500)
-    })
-        .then(function () {
-            establishConnection()
-                .then(function (values) {
-                    console.log(values)
-                    socket = io(`/chatroom/${roomId}`)
+    modifyClassName(['visible'], ['invisible'], { id: 'overlay' })
+    establishConnection()
+        .then(function (nspCreated) {
+            console.log(nspCreated)
+            socket = io(`/chatroom/${roomId}`)
 
-                    // Chatroom updates
-
-                    socket.on('newParticipant', function (data) {
-                        console.log('NEW PARTICIPANT')
-                        appendUsersList(data.displayName, data.userId, data.status)
-                    })
-                    socket.on('receiveNewMessage', function (data) {
-                        console.log(data)
-                        let isRespondent = data.payload.author !== userId
-                        if (isRespondent)
-                            generateChatBubble(data.payload.displayName, data.payload.content, isRespondent, true, data.payload.timestamp)
-                    })
-                    socket.on('notifyMessageSent', function (messageId) {
-                        console.log('sent')
-                        modifyClassName(['badge-info'], ['badge-light'], { id: messageId })
-                    })
-                    socket.on('leaveRoomAck', function (response) {
-                        console.log('LEFT ROOM', response)
-                        if (response.status > 0){
-                            responseMsg.innerText = 'Leaving chatroom'
-                            modifyClassName(['visible'], ['invisible'], { id: 'overlay' })
-                            window.location = `${window.origin}/dashboard/dashboard.html`
-                        }
-                    })
+            // Chatroom updates
+            socket.emit('isParticipant', { roomId: roomId, userId: userId })
+            socket.on('userJoin', function (data) {
+                if (!document.getElementById(data.userId))
+                    appendUsersList(data.displayName, data.userId, data.status)
+                else
+                    modifyClassName(['bg-success'], ['bg-secondary'], { id: data.userId })
+            })
+            socket.on('receiveNewMessage', function (data) {
+                console.log(data)
+                let isRespondent = data.payload.author !== userId
+                if (isRespondent)
+                    generateChatBubble(data.payload.displayName, data.payload.content, isRespondent, true, data.payload.timestamp)
+            })
+            socket.on('notifyMessageSent', function (messageId) {
+                console.log('sent')
+                modifyClassName(['badge-info'], ['badge-light'], { id: messageId })
+            })
+            socket.on('leaveRoomAck', function (response) {
+                console.log('LEFT ROOM', response)
+                if (response.status > 0) {
+                    responseMsg.innerText = 'Leaving chatroom'
+                    modifyClassName(['visible'], ['invisible'], { id: 'overlay' })
+                    window.location = `${window.origin}/dashboard/dashboard.html`
+                }
+            })
 
 
-                    // Socket connection
-                    // To track user online / offline status change
-                    firebase.auth().currentUser.getIdToken().then(function (token) {
-                        socket.emit('connection', { userToken: token, roomId: roomId })
-                    })
-                    socket.on('updateUserStatus', function (userStatusData) {
-                        if (userStatusData.isParticipant) {
-                            if (userStatusData.isOnline)
-                                modifyClassName(['bg-success'], ['bg-secondary'], { id: userStatusData.userId })
-                            else
-                                modifyClassName(['bg-secondary'], ['bg-success'], { id: userStatusData.userId })
-                        } else {
-                            // TODO: (Fix) Remove user from users list when leaving room, check conflict between "disconnect" and "updateUserStatus"
-                            if(userStatusData.isParticipant !== undefined)
-                                removeUserFromList(userStatusData.userId)
-                        }
-                    })
-                    socket.on('disconnect', function () {
-                        responseMsg.innerText = 'DISCONNECTED\nPlease check your connection'
-                        modifyClassName(['visible'], ['invisible'], { id: 'overlay' })
-                        modifyClassName(['bg-secondary'], ['bg-success'], { id: userId })
-                    })
-                    socket.on('reconnect', function () {
-                        modifyClassName(['bg-success'], ['bg-secondary'], { id: userId })
-                        chatArea.innerHTML = ''
-                        responseMsg.innerText = 'RECONNECTED\nReinitializing chatroom'
-                        modifyClassName(['visible'], ['invisible'], { id: 'overlay' })
-                        
-                        // Reinitialize chatroom
-                        socket.removeAllListeners()
-                        initChatroom()
-                    })
-                    getChatroomData()
-                })
+            // Socket connection
+            socket.on('updateUserStatus', function (userStatusData) {
+                if (document.getElementById(userStatusData.userId)) {
+                    console.log(userStatusData)
+                    if (userStatusData.isParticipant) {
+                        if (userStatusData.isOnline)
+                            modifyClassName(['bg-success'], ['bg-secondary'], { id: userStatusData.userId })
+                        else
+                            modifyClassName(['bg-secondary'], ['bg-success'], { id: userStatusData.userId })
+                    } else {
+                        if (userStatusData.isParticipant !== undefined)
+                            removeUserFromList(userStatusData.userId)
+                    }
+                }
+            })
+            socket.on('disconnect', function () {
+                responseMsg.innerText = 'DISCONNECTED\nPlease check your connection'
+                modifyClassName(['visible'], ['invisible'], { id: 'overlay' })
+                modifyClassName(['bg-secondary'], ['bg-success'], { id: userId })
+            })
+            socket.on('reconnect', function () {
+                modifyClassName(['bg-success'], ['bg-secondary'], { id: userId })
+                chatArea.innerHTML = ''
+                responseMsg.innerText = 'RECONNECTED\nReinitializing chatroom'
+                modifyClassName(['visible'], ['invisible'], { id: 'overlay' })
+
+                // Reinitialize chatroom
+                socket.removeAllListeners()
+                initChatroom()
+            })
+            getChatroomData()
         })
 }
-initChatroom()
 
 function establishConnection() {
     return new Promise(function (resolve, reject) {
@@ -127,6 +123,7 @@ function getChatroomData() {
                 })
                     .then(response => response.json())
                     .then(function (chatroomData) {
+                        console.log(chatroomData)
                         if (chatroomData.messages.length > 0) {
                             for (let x of chatroomData.messages) {
                                 let isRespondent = x.author !== userId
@@ -137,6 +134,10 @@ function getChatroomData() {
                             appendUsersList(x.displayName, x.userId, x.status)
                         resolve(true)
                         modifyClassName(['invisible'], ['visible'], { id: 'overlay' })
+
+                        firebase.auth().currentUser.getIdToken().then(function (token) {
+                            socket.emit('connection', { userToken: token, roomId: roomId })
+                        })
                     })
                     .catch(err => reject(err))
             })

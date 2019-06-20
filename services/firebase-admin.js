@@ -16,10 +16,9 @@ let firebase = admin.initializeApp({
  *  @returns Object (Includes "name","exp","user_id","email",etc.)
  */
 exports.verifyIdToken = function (token) {
-    // TODO: Return object instead of boolean
-    return new Promise(function (resolve,reject) {
+    return new Promise(function (resolve, reject) {
         firebase.auth().verifyIdToken(token)
-            .then(function(data){
+            .then(function (data) {
                 resolve(data)
             })
             .catch(err => reject(err))
@@ -29,21 +28,32 @@ exports.verifyIdToken = function (token) {
 /**
  *  Retrieves user data from Firebase based on user ID 
  */
-exports.getUserData = function(/**@type Array.<String> */userIds){
-    return new Promise(function(resolve,reject){
+exports.getUserData = function (/**@type Array.<String> */userIds) {
+    console.log('getuserdata')
+    return new Promise(function (resolve, reject) {
         let users = []
-        for(let x in userIds){
-            firebase.auth().getUser(userIds[x])
-                .then(function(userData){
-                    // Get user online status from DB
-                    db.getOneDocumentData('usersDb','users',{userId:userIds[x]})
-                        .then(function(userDataDb){
-                            users.push({userId:userIds[x],displayName:userData.displayName,email:userData.email,status:userDataDb.status})
-                            if(parseInt(x) === userIds.length - 1)
-                                resolve(users)
-                        })
+        let index = 0
+        let promises = []
+        for(let x of userIds){
+            let newPromise = new Promise(function(resolve,reject){
+                firebase.auth().getUser(x)
+                    .then(function(userData){
+                        db.getOneDocumentData('usersDb', 'users', { userId: x }).then(function (userDataDb) {
+                            resolve({ userId: x, displayName: userData.displayName, email: userData.email, status:userDataDb.status})
+                        .catch(err => reject(err))
+                    })
+                    .catch(err => reject(err))
                 })
-                .catch(err => console.log(err))
+            })
+            promises.push(newPromise)
         }
+        Promise.all(promises).then(function(values){
+            for(let x in values){
+                users.push(values[x])
+                if(x === values.length - 1)
+                    break
+            }
+            resolve(users)
+        }).catch(err => reject(err))
     })
 }
