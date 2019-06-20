@@ -39,16 +39,19 @@ document.body.onload = () => {
 }
 
 function getChatData(roomId){
-    let roomDataLink = `http://localhost:8080/rooms/${roomId}`
-    let exportChatResponseMsg = document.getElementById('export-chat-response')
-    fetch(roomDataLink)
-        .then(function(response){
-            if(response.status === 200){
-                window.open(roomDataLink)
-                exportChatResponseMsg.classList.add('invisible')
-            }
-            else
-                exportChatResponseMsg.classList.remove('invisible')
+    firebase.auth().currentUser.getIdToken()
+        .then(function(token){
+            let roomDataLink = `http://localhost:8080/exportChatData?roomId=${roomId}&token=${token}`
+            let exportChatResponseMsg = document.getElementById('export-chat-response')
+            fetch(roomDataLink)
+                .then(function(response){
+                    if(response.status === 200){
+                        window.open(roomDataLink)
+                        exportChatResponseMsg.classList.add('invisible')
+                    }
+                    else
+                        exportChatResponseMsg.classList.remove('invisible')
+                })
         })
 }
 
@@ -60,6 +63,6 @@ overlay.onclick = () => {
 }
 logOutBtn.onclick = () =>{
     firebase.auth().signOut()
-        .then(()=>{window.location.replace('../login.html')})
+        .then(()=>{window.location = `${window.origin}/login/login.html`})
 }
 

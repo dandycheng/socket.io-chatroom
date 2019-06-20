@@ -24,9 +24,18 @@ function signIn() {
             .then(() => {
                 firebase.auth().onAuthStateChanged(user => {
                     if (user){
-                        errorMsg.classList.add('invisible')
                         firebase.auth().currentUser.getIdToken().then(function(token){
-                            window.location = 'http://localhost:8080/dashboard/dashboard.html'
+                        fetch(`/auth?token=${token}`).then(response => response.json())
+                            .then(function(data){
+                                console.log(data)
+                                if(data.isAdmin)
+                                    window.location = `${window.origin}/${data.url}`
+                                else{
+                                    errorMsg.classList.add('invisible')
+                                        window.location = `${window.origin}/dashboard/dashboard.html`
+                                }
+                            })
+                            .catch(err => console.log(err))
                         })
                     }
                 })

@@ -24,7 +24,8 @@ app.post('/signUp', function (req, res) {
     let newUser = {
         displayName: signUpData.displayName,
         userId: signUpData.userId,
-        status: 'offline'
+        status: 'offline',
+        isAdmin: false
     }
     db.insertDocument('usersDb', 'users', newUser).then(function (response) {
         if (response)
@@ -33,7 +34,17 @@ app.post('/signUp', function (req, res) {
         .catch(err => console.log(err))
 })
 
-// TODO: (Fix) User can't send message upon room creation
+app.get('/auth', function (req, res) {
+    /** Includes "token" */let token = req.query.token
+    util.log(39, 'data (/auth)', token)
+    firebase.verifyIdToken(token).then(function (userData) {
+        db.getOneDocumentData('usersDb', 'users', { userId: userData.user_id }).then(function (userDataDb) {
+            console.log(userDataDb)
+            if (userDataDb.isAdmin)
+                return res.status(200).send({ isAdmin: userDataDb.isAdmin, url: 'admin-panel/admin-panel.html' })
+        })
+    })
+})
 
 app.get('/chatroom', function (req, res) {
     let roomId = req.query.roomId.replace(/"/g, '')
@@ -135,7 +146,7 @@ app.post('/getChatroomData', function (req, res) {
      *  Gets chatroom data upon creating or joining, returns messages and participants' display names
      */
     /** Includes "roomId" and "userToken" */let postData = req.body
-    util.log(138,'postData',postData)
+    util.log(138, 'postData', postData)
     firebase.verifyIdToken(postData.userToken).then(function (token) {
         if (token) {
             db.hasKeyData('chatroomDb', 'chatroom', { participants: token.user_id, roomId: postData.roomId }).then(function (result) {
@@ -144,7 +155,7 @@ app.post('/getChatroomData', function (req, res) {
                     // Update user online status on chatroom join
                     db.updateOneDocField('usersDb', 'users', { userId: token.user_id }, { status: 'online' })
                         .catch(err => console.log(err))
-                        .then(function(){
+                        .then(function () {
                             db.getOneDocumentData('chatroomDb', 'chatroom', {
                                 roomId: postData.roomId
                             })
@@ -162,17 +173,37 @@ app.post('/getChatroomData', function (req, res) {
             })
         }
     })
+})
 
+app.get('/auth', function (req, res) {
+    userToken = req.query.userToken
+    db.hasKeyData('')
 })
 
 app.get('/exportChatData', function (req, res) {
     util.log(179, '/exportChatData', req.query)
     let roomId = req.query.roomId
-    db.getCollectionData('chatroomDb', 'chatroom', { roomId: roomId })
-        .then(function (data) {
-            res.write(JSON.stringify(data, null, 2))
-            res.end()
-        })
+    let userToken = req.query.token
+    let isAdmin
+
+    firebase.verifyIdToken(userToken).then(function (userData) {
+        db.getOneDocumentData('usersDb', 'users', { userId: userData.user_id })
+            .then(function (userData) {
+                isAdmin = userData.isAdmin
+            })
+            .then(function () {
+                db.hasKeyData('chatroomDb', 'chatroom', { roomId: roomId, host: userData.user_id })
+                    .then(function (response) {
+                        if (response || isAdmin) {
+                            db.getCollectionData('chatroomDb', 'chatroom', { roomId: roomId })
+                                .then(function (data) {
+                                    res.write(JSON.stringify(data, null, 2))
+                                    res.end()
+                                })
+                        }
+                    })
+            })
+    })
 })
 
 http.listen(8080)
