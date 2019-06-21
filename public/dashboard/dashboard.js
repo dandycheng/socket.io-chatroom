@@ -100,7 +100,7 @@ function initChatroomFetch(/** Value retrieved from input box */roomInput, isJoi
                     }
                 }
             })
-            .catch(err => console.log(err))
+            .catch(error => console.log(error))
     })
 }
 
