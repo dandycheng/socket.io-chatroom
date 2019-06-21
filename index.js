@@ -7,7 +7,6 @@ const http = require('http').createServer(app)
 const io = require('socket.io')(http)
 
 //  Services
-const auth = require('./services/auth')
 const db = require('./services/mongodb')
 const firebase = require('./services/firebase-admin')
 const socketIo = require('./services/socket.io')
@@ -31,7 +30,7 @@ app.post('/signUp', function (req, res) {
         if (response)
             res.status(200).send()
     })
-        .catch(err => console.log(err))
+        .catch(error => console.log(error))
 })
 
 app.get('/auth', function (req, res) {
@@ -40,8 +39,7 @@ app.get('/auth', function (req, res) {
     firebase.verifyIdToken(token).then(function (userData) {
         db.getOneDocumentData('usersDb', 'users', { userId: userData.user_id }).then(function (userDataDb) {
             console.log(userDataDb)
-            if (userDataDb.isAdmin)
-                return res.status(200).send({ isAdmin: userDataDb.isAdmin, url: 'admin-panel/admin-panel.html' })
+            return res.status(200).send({ isAdmin: userDataDb.isAdmin, url: 'admin-panel/admin-panel.html' })
         })
     })
 })
@@ -97,27 +95,27 @@ app.post("/checkRoomExistence", function (req, res) {
 
 app.post('/newChatroom', function (req, res) {
     /** @type {{roomName:string,userToken:string}} */let postData = req.body
-    firebase.verifyIdToken(postData.userToken)
-        .then(function (userData) {
-            if (userData) {
-                let newRoomId = uniqid()
-                db.insertDocument('chatroomDb', 'chatroom', {
-                    roomName: postData.roomName,
-                    roomId: newRoomId,
-                    participants: [userData.user_id],
-                    state: 'active',
-                    host: userData.user_id,
-                    createdAt: Date.now(),
-                    messages: []
-                }).then(function (response) {
-                    if (response)
-                        res.status(200).send({
-                            result: 'room-create/room-created',
-                            data: { roomId: newRoomId }
-                        })
-                })
-            }
-        })
+    firebase.verifyIdToken(postData.userToken).then(function (userData) {
+        if (userData) {
+            let newRoomId = uniqid()
+            db.insertDocument('chatroomDb', 'chatroom', {
+                roomName: postData.roomName,
+                roomId: newRoomId,
+                participants: [userData.user_id],
+                state: 'active',
+                host: userData.user_id,
+                createdAt: Date.now(),
+                messages: []
+            }).then(function (response) {
+                if (response){
+                    res.status(200).send({
+                        result: 'room-create/room-created',
+                        data: { roomId: newRoomId }
+                    })
+                }
+            })
+        }
+    })
 })
 
 app.post('/joinRoom', function (req, res) {
@@ -154,7 +152,7 @@ app.post('/getChatroomData', function (req, res) {
                 if (result) {
                     // Update user online status on chatroom join
                     db.updateOneDocField('usersDb', 'users', { userId: token.user_id }, { status: 'online' })
-                        .catch(err => console.log(err))
+                        .catch(error => console.log(error))
                         .then(function () {
                             db.getOneDocumentData('chatroomDb', 'chatroom', {
                                 roomId: postData.roomId
@@ -166,7 +164,7 @@ app.post('/getChatroomData', function (req, res) {
                                         res.status(200).send({ messages: chatroomData.messages, participants: userData })
                                     })
                                 })
-                                .catch(err => console.log(err))
+                                .catch(error => console.log(error))
                         })
                 } else
                     res.status(403).send()

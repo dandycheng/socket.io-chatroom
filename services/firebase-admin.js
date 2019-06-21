@@ -8,7 +8,7 @@ let serviceAccount = require('../chat-room-d1e5c-firebase-adminsdk-3uqzt-fac2e59
 let firebase = admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
     databaseURL: "https://chat-room-d1e5c.firebaseio.com"
-});
+})
 
 /**
  *  Verifies firebase token
@@ -21,28 +21,26 @@ exports.verifyIdToken = function (token) {
             .then(function (data) {
                 resolve(data)
             })
-            .catch(err => reject(err))
+            .catch(error => reject(error))
     })
 }
 
-/**
- *  Retrieves user data from Firebase based on user ID 
- */
+/** Retrieves user data from Firebase based on user ID  */
 exports.getUserData = function (/**@type Array.<String> */userIds) {
     console.log('getuserdata')
     return new Promise(function (resolve, reject) {
         let users = []
-        let index = 0
         let promises = []
         for(let x of userIds){
+            console.log(userIds)
             let newPromise = new Promise(function(resolve,reject){
                 firebase.auth().getUser(x)
                     .then(function(userData){
                         db.getOneDocumentData('usersDb', 'users', { userId: x }).then(function (userDataDb) {
                             resolve({ userId: x, displayName: userData.displayName, email: userData.email, status:userDataDb.status})
-                        .catch(err => reject(err))
+                        .catch(error => reject(error))
                     })
-                    .catch(err => reject(err))
+                    .catch(error => reject(error))
                 })
             })
             promises.push(newPromise)
@@ -54,6 +52,6 @@ exports.getUserData = function (/**@type Array.<String> */userIds) {
                     break
             }
             resolve(users)
-        }).catch(err => reject(err))
+        }).catch(error => reject(error))
     })
 }

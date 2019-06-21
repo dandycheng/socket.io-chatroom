@@ -1,65 +1,68 @@
-const express = require('express')
-const app = express()
-const http = require('http').Server(app)
-const io = require('socket.io')(http)
+// Services
 const db = require('../services/mongodb')
-const uniqid = require('uniqid')
 const firebase = require('./firebase-admin')
 const util = require('./../util/util')
-const index = require('../index')
 
 
 exports.initSocket = function (socket) {
-    let nspData = {}
-    socket.on('test', function () {
-        console.log('\nTEST\n')
-    })
+    let nspData
 
     socket.on('connection', function (connectionData) {
-        nspData.userToken = connectionData.userToken
-        nspData.roomId = connectionData.roomId
+        console.log('NSP CONNECTION LISTENER CALLED')
+        nspData = {
+            userToken: connectionData.userToken,
+            roomId: connectionData.roomId
+        }
         firebase.verifyIdToken(connectionData.userToken).then(function (userData) {
-            socket.broadcast.emit('userJoin', { userId: userData.user_id, displayName: userData.name, status: 'online' })
+            let userStatus = {
+                userId: userData.user_id,
+                displayName: userData.name,
+                status: 'online'
+            }
+            socket.broadcast.emit('userJoin', userStatus)
         })
     })
 
-
-    util.log(13, 'INITIALIZED SOCKET')
     socket.on('sendMessage', function sendMessage(chatMessageConfig) {
+        console.log('SEND MESSAGE LISTENTER CALLED\nMessage data:', chatMessageConfig)
+
         // Updates chatroom database
-        let messageData = chatMessageConfig
         firebase.verifyIdToken(chatMessageConfig.userData.userToken)
             .then(function (userData) {
                 if (userData) {
-                    messageData.payload.displayName = userData.name
-                    db.insertDocumentData('chatroomDb', 'chatroom', {
-                        roomId: messageData.mainConfig.roomId
-                    },
-                        { messages: messageData.payload })
+
+                    // Faster than using delete
+                    chatMessageConfig.userData.userToken = undefined
+                    chatMessageConfig.payload.displayName = userData.name
+                    db.insertDocumentData('chatroomDb', 'chatroom', { roomId: chatMessageConfig.mainConfig.roomId },
+                        { messages: chatMessageConfig.payload })
                         .then(function (insertResponse) {
-                            if (insertResponse && messageData.payload) {
-                                socket.emit('notifyMessageSent', messageData.payload.messageId)
-                                socket.broadcast.emit('receiveNewMessage', messageData)
+                            if (insertResponse && chatMessageConfig.payload) {
+                                // Used for client side timestamp modification (DOM)
+                                socket.emit('notifyMessageSent', chatMessageConfig.payload.messageId)
+                                socket.broadcast.emit('receiveNewMessage', chatMessageConfig)
                             }
                         })
-                        .catch(err => console.log(err))
+                        .catch(error => console.log(error))
                 }
             })
     })
 
     socket.on('leaveRoom', function (token) {
-        // TODO: Update users list on leave
+        console.log('LEAVE ROOM LISTENER CALLED')
         firebase.verifyIdToken(token).then(function (userData) {
             util.log(60, 'leaveRoom', userData)
             db.deleteOneArrayElement('chatroomDb', 'chatroom', { participants: userData.user_id }, { participants: userData.user_id })
                 .then(function (result) {
+                    console.log('EMITTING "leaveRoomAck"')
                     if (result) {
-                        console.log('UPDATE USER STATUS')
-                        socket.broadcast.emit('updateUserStatus', {
+                        console.log('EMITTING "updateUserStatus"\nData:\n', userStatus)
+                        let userStatus = {
                             userId: userData.user_id,
                             isOnline: false,
                             isParticipant: false
-                        })
+                        }
+                        socket.broadcast.emit('updateUserStatus', userStatus)
                         socket.emit('leaveRoomAck', {
                             status: 1,
                             result: 'chatroom/left-chatroom'
@@ -67,29 +70,36 @@ exports.initSocket = function (socket) {
                     } else {
                         socket.emit('leaveRoomAck', {
                             status: -1,
-                            data: { err: 'No need, user is not in the chatroom' }
+                            data: { error: 'No need, user is not in the chatroom' }
                         })
                     }
                 })
             db.hasKeyData('chatroomDb', 'chatroom', { participants: userData.user_id }, true)
                 .then(function (response) {
                     if (response.participants.length === 1) {
-                        db.deleteOneDocument('chatroomDb', 'chatroom', { roomId: response.roomId }).catch(err => console.log(err))
+                        console.log('REMOVED USER FROM CHATROOM COLLECTION')
+                        db.deleteOneDocument('chatroomDb', 'chatroom', { roomId: response.roomId }).catch(error => console.log(error))
                     }
                 })
         })
     })
+    
     // Socket connection
     socket.on('disconnect', function () {
         console.log('USER DISCONNECTED')
         firebase.verifyIdToken(nspData.userToken).then(function (userData) {
             db.updateOneDocField('usersDb', 'users', { userId: userData.user_id }, { status: 'offline' })
             db.hasKeyData('chatroomDb', 'chatroom', { participants: userData.user_id }).then(function (response) {
-                console.log(response)
-                if (response)
-                    socket.broadcast.emit('updateUserStatus', { userId: userData.user_id, isOnline: false, isParticipant: response })
+                if (response) {
+                    let userStatus = {
+                        userId: userData.user_id,
+                        isOnline: false,
+                        isParticipant: response
+                    }
+                    console.log('EMITTING "updateUserStatus"', userStatus)
+                    socket.broadcast.emit('updateUserStatus', userStatus)
+                }
             })
-            socket.removeAllListeners()
         })
     })
 }

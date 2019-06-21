@@ -13,20 +13,18 @@ const usersList = document.getElementById('users-list')
 const userListToggle = document.getElementById('users-list-toggle')
 const responseMsg = document.getElementById('response-msg')
 const overlay = document.getElementById('overlay')
-let userId = localStorage.userId
-let uniqueId
 
+let userId = localStorage.userId
 let url = new URL(window.location)
 let roomId = url.searchParams.get('roomId')
 
 firebase.auth().onAuthStateChanged(function (user) {
-    if (user){
+    if (user) {
         initChatroom()
     }
 })
 
-function initChatroom(){
-    
+function initChatroom() {
     chatArea.innerHTML = ''
     modifyClassName(['visible'], ['invisible'], { id: 'overlay' })
     establishConnection()
@@ -67,10 +65,11 @@ function initChatroom(){
                 if (document.getElementById(userStatusData.userId)) {
                     console.log(userStatusData)
                     if (userStatusData.isParticipant) {
-                        if (userStatusData.isOnline)
+                        if (userStatusData.isOnline) {
                             modifyClassName(['bg-success'], ['bg-secondary'], { id: userStatusData.userId })
-                        else
+                        } else {
                             modifyClassName(['bg-secondary'], ['bg-success'], { id: userStatusData.userId })
+                        }
                     } else {
                         if (userStatusData.isParticipant !== undefined)
                             removeUserFromList(userStatusData.userId)
@@ -96,6 +95,11 @@ function initChatroom(){
         })
 }
 
+/**
+ * Establishes namespace
+ * 
+ * @returns Promise --> resolve(<boolean>), reject(<error>)
+ */
 function establishConnection() {
     return new Promise(function (resolve, reject) {
         fetch(`${window.origin}/chatroom?roomId=${roomId}`)
@@ -105,44 +109,42 @@ function establishConnection() {
                     resolve(true)
                 }
             })
+            .catch(error => reject(error))
     })
 }
 
 /** Includes messages and display names */
 function getChatroomData() {
-    return new Promise(function (resolve, reject) {
-        firebase.auth().currentUser.getIdToken()
-            .then(function (token) {
-                fetch(`${window.origin}/getChatroomData`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        userToken: token,
-                        roomId: roomId
+    firebase.auth().currentUser.getIdToken()
+        .then(function (token) {
+            fetch(`${window.origin}/getChatroomData`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userToken: token,
+                    roomId: roomId
+                })
+            })
+                .then(response => response.json())
+                .then(function (chatroomData) {
+                    console.log(chatroomData)
+                    if (chatroomData.messages.length > 0) {
+                        for (let x of chatroomData.messages) {
+                            let isRespondent = x.author !== userId
+                            generateChatBubble(x.displayName, x.content, isRespondent, true, x.timestamp)
+                        }
+                    }
+                    for (let x of chatroomData.participants)
+                        appendUsersList(x.displayName, x.userId, x.status)
+                    modifyClassName(['invisible'], ['visible'], { id: 'overlay' })
+
+                    firebase.auth().currentUser.getIdToken().then(function (token) {
+                        socket.emit('connection', { userToken: token, roomId: roomId })
                     })
                 })
-                    .then(response => response.json())
-                    .then(function (chatroomData) {
-                        console.log(chatroomData)
-                        if (chatroomData.messages.length > 0) {
-                            for (let x of chatroomData.messages) {
-                                let isRespondent = x.author !== userId
-                                generateChatBubble(x.displayName, x.content, isRespondent, true, x.timestamp)
-                            }
-                        }
-                        for (let x of chatroomData.participants)
-                            appendUsersList(x.displayName, x.userId, x.status)
-                        resolve(true)
-                        modifyClassName(['invisible'], ['visible'], { id: 'overlay' })
-
-                        firebase.auth().currentUser.getIdToken().then(function (token) {
-                            socket.emit('connection', { userToken: token, roomId: roomId })
-                        })
-                    })
-                    .catch(err => reject(err))
-            })
-            .catch(err => reject(err))
-    })
+                .catch(error => console.log(error))
+        })
+        .catch(error => console.log(error))
 }
 
 
@@ -159,16 +161,22 @@ endChat.onclick = function () {
 }
 
 exportChat.onclick = () => {
-    fetch(`${window.origin}/exportChatData?roomId=${roomId}`)
-        .then(function (response) {
-            if (response.status === 200)
-                window.location = `${window.origin}/exportChatData?roomId=${roomId}`
-        })
+    firebase.auth().currentUser.getIdToken().then(function (token) {
+        modifyClassName(['visible'], ['invisible'], { id: 'overlay' })
+        responseMsg.innerText = 'Exporting chat...'
+        fetch(`${window.origin}/exportChatData?roomId=${roomId}&token=${token}`)
+            .then(function (response) {
+                if (response.status === 200) {
+                    window.open(`${window.origin}/exportChatData?roomId=${roomId}&token=${token}`)
+                    responseMsg.innerText = 'Chat exported'
+                    modifyClassName(['invisible'], ['visible'], { id: 'overlay' })
+                }
+            })
+    })
 }
 
 chatTextbox.onkeydown = e => {
     if (!e.shiftKey) {
-        // TODO: Remove this (Without causing bugs!)
         (chatTextbox.innerText.length > 500 && e.keyCode !== 8) && (e.preventDefault()) // Limit message length
 
         // Prevents placement of space and "\n" when there are no non-whitespace content
@@ -215,14 +223,8 @@ function adjustMainContent() {
 
 /**
  *  Appends new chat bubble to chat area.
- * 
- *  @param {string} displayName Message author's display name
- *  @param {string} content Message content
- *  @param {number} timestamp The time which the message is sent
- *  @param {boolean} isRespondent true if the sender is not the user 
- *  @param {boolean} isFetch true if the message is fetched from the database
  */
-function generateChatBubble(displayName, content, isRespondent, isFetch, timestamp = null) {
+function generateChatBubble(/**@type string */displayName,/**@type string */ content,/**@type boolean */ isRespondent,/**@type boolean */ isFetch, timestamp = null) {
 
     const date = new Date()
     if (timestamp)
@@ -250,7 +252,6 @@ function generateChatBubble(displayName, content, isRespondent, isFetch, timesta
     // #endregion
     chatArea.innerHTML += chatBubbleMsg
     let messageComponents = {
-        chatBubble: document.querySelector('#chat-area > div:last-child .chat-bubble'),
         chatBubbleText: document.querySelector('#chat-area > div:last-child .chat-bubble p'),
         timestamp: document.querySelector('#chat-area > div:last-child span')
     }
@@ -261,25 +262,20 @@ function generateChatBubble(displayName, content, isRespondent, isFetch, timesta
     chatTextbox.innerText = ''
     chatArea.scrollBy(0, chatArea.clientHeight + chatArea.scrollHeight) // Scroll to latest message
     if (!isFetch) {
-        let newMessageId = Math.round(Math.random() * Math.pow(10, 10))
+        let newMessageId = Math.round(Math.random() * Math.pow(10, 10)).toString()
         messageComponents.timestamp.id = newMessageId
         sendMessageToDb(userId, content, Date.now(), newMessageId)
     }
 }
 
-function sendMessageToDb(author, messageContent, timestamp, messageId) {
-    /**
-     *  Inserts message data into database
-     *  
-     *  @param {string} author Message author's user id
-     *  @param {string} displayName Message author's display name
-     *  @param {int} timestamp Date.now()
-     */
+/**
+ *  Inserts message data into database
+ */
+function sendMessageToDb(/**@type string */author,/**@type string */ messageContent,/**@type int */ timestamp,/**@type string */ messageId) {
 
     let userToken
     firebase.auth().currentUser.getIdToken().then(token => userToken = token)
         .then(function () {
-            // TODO: Get display name from firebase for message payload
             socket.emit('sendMessage', {
                 payload: {
                     messageId: messageId,
@@ -297,20 +293,10 @@ function sendMessageToDb(author, messageContent, timestamp, messageId) {
         })
 }
 
-
-
-function getUserToken() {
-    return new Promise(function (resolve) {
-        const getRefreshToken = setInterval(() => {
-            if (firebase.auth().currentUser) {
-                resolve(firebase.auth().currentUser.getIdToken(true))
-                clearInterval(getRefreshToken)
-            }
-        })
-    })
-}
-
-function appendUsersList(username, id, status) {
+/**
+ *  Appends a user's display name to the user online list
+ */
+function appendUsersList(/**@type string */username,/**@type string */ id,/**@type string */ status) {
     if (document.getElementById(id) === null) {
         usersList.innerHTML +=
             `
@@ -321,8 +307,10 @@ function appendUsersList(username, id, status) {
         `
     }
 }
-
-function removeUserFromList(id) {
+/**
+ *  Removes a user from the user online list when a user leaves the chatroom
+ */
+function removeUserFromList(/**@type string */id) {
     let user = document.getElementById(id).parentElement
     user.parentElement.removeChild(user)
 }

@@ -7,10 +7,21 @@ const emailInput = document.getElementById('email')
 const passwdInput = document.getElementById('passwd')
 const confirmPasswdInput = document.getElementById('confirm-passwd')
 
-document.body.onload = () => signUpWrapper.style.transform = 'translate(0)';
+document.body.onload = () => signUpWrapper.style.transform = 'translate(0)'
+
+
+// Emptying input fields
+for (let x of document.getElementsByTagName('input')) {
+	function removeErrMsg() {
+		modifyClassName(['invisible'], ['visible'], { id: 'response-msg' })
+	}
+	x.addEventListener('focus', removeErrMsg)
+	x.addEventListener('keydown', removeErrMsg)
+}
 
 signUpBtn.onclick = e => {
 	e.preventDefault()
+	modifyClassName(['visible'], ['invisible'], { id: 'response-msg' })
 	responseMsg.textContent = 'Validating...'
 	let validated = false, lengthValidation = 1
 	for (let x of validation) {
@@ -43,19 +54,17 @@ signUpBtn.onclick = e => {
 					.then(function (response) {
 						if (response.status === 200) {
 							firebase.auth().signOut().then(function () {
-								setTimeout(() => {
-									window.location = `${window.origin}/login/login.html`
-								}, 2000)
+								window.location = `${window.origin}/login/login.html`
 							})
 						}
 					})
 			})
-			.catch(function (err) {
+			.catch(function (error) {
 				let errorMessages = {
 					'auth/email-already-in-use': 'This account is already registered',
 					'auth/invalid-email': 'Invalid email format'
 				}
-				responseMsg.textContent = errorMessages[err.code]
+				responseMsg.textContent = errorMessages[error.code]
 			})
 	}
 }

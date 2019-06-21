@@ -26,10 +26,11 @@ const showModal = (placeholderText, btnText) => {
     document.getElementById('submitRoomNameBtn').onclick = e => {
         e.preventDefault()
         if (roomInput.value.length !== 0) {
-            if (btnText.includes('Create'))
+            if (btnText.includes('Create')) {
                 createRoom()
-            else
+            } else {
                 joinRoom(roomInput.value)
+            }
         }
     }
     document.body.onkeyup = e => {
@@ -43,14 +44,14 @@ const createRoom = () => {
     let responseMsg = document.getElementById('room-action-response')
     responseMsg.textContent = 'Please wait...'
     responseMsg.className = 'text-secondary'
-    initChatroomFetch(roomInput.value,false)
+    initChatroomFetch(roomInput.value, false)
 }
 
 const joinRoom = () => {
     let responseMsg = document.getElementById('room-action-response')
     responseMsg.textContent = 'Please wait...'
     responseMsg.className = 'text-secondary'
-    initChatroomFetch(roomInput.value,true)
+    initChatroomFetch(roomInput.value, true)
 }
 
 document.body.onload = () => {
@@ -61,19 +62,19 @@ document.body.onload = () => {
 joinRoomBtn.onclick = () => showModal('Enter room ID', 'Join room')
 
 newRoomBtn.onclick = () => showModal('Enter a room name', 'Create room')
+
 overlay.onclick = () => {
     overlayModalWrapper.classList.remove('d-flex')
     overlayModalWrapper.classList.add('d-none')
 }
+
 logOutBtn.onclick = () => {
-    firebase.auth().signOut()
-        .then(() => { window.location.replace('../login/login.html') })
+    firebase.auth().signOut().then(() => window.location.replace('../login/login.html'))
 }
 
 
 /** API **/
-
-function initChatroomFetch(/** Value retrieved from input box */roomInput,isJoin) {
+function initChatroomFetch(/** Value retrieved from input box */roomInput, isJoin) {
     firebase.auth().currentUser.getIdToken().then(token => {
         fetch(`${window.origin}/checkRoomExistence`, {
             method: 'POST',
@@ -82,20 +83,20 @@ function initChatroomFetch(/** Value retrieved from input box */roomInput,isJoin
                 userToken: token,
                 roomName: isJoin ? null : roomInput,
                 roomId: isJoin ? roomInput : null,
-                isJoin:isJoin
+                isJoin: isJoin
             })
         })
             .then(response => response.json())
             .then(function (roomData) {
                 if (roomData.result.includes('/exists'))
                     joinExistingChatroom(roomData.data.roomId)
-                else{
-                    if(!isJoin)
+                else {
+                    if (!isJoin) {
                         newChatroom()
-                    else{
+                    } else {
                         let responseMsg = document.getElementById('room-action-response')
                         responseMsg.textContent = 'Room ID does not exist'
-                        modifyClassName(['text-danger'],['text-secondary'],{id:'room-action-response'})
+                        modifyClassName(['text-danger'], ['text-secondary'], { id: 'room-action-response' })
                     }
                 }
             })
