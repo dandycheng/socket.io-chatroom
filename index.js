@@ -163,7 +163,10 @@ app.post('/getChatroomData', function (req, res) {
                                 .catch(error => console.log(error))
                         })
                 } else
-                    res.status(403).send()
+                    res.send({
+                        status:-1,
+                        result:'join-room/not-a-participant'
+                    })
             })
         }
     })

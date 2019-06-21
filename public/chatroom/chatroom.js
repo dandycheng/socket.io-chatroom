@@ -91,6 +91,7 @@ function initChatroom() {
                 // Reinitialize chatroom
                 socket.removeAllListeners()
                 initChatroom()
+                getChatroomData()
             })
         })
 }
@@ -127,20 +128,24 @@ function getChatroomData() {
             })
                 .then(response => response.json())
                 .then(function (chatroomData) {
-                    console.log(chatroomData)
-                    if (chatroomData.messages.length > 0) {
-                        for (let x of chatroomData.messages) {
-                            let isRespondent = x.author !== userId
-                            generateChatBubble(x.displayName, x.content, isRespondent, true, x.timestamp)
+                    if(chatroomData.result && chatroomData.result.includes('not-a-participant')){
+                        responseMsg.innerText = "NO ACCESS\nYou are not a participant of this chatroom."
+                        modifyClassName(['visible'], ['invisible'], { id: 'overlay' })
+                    }else{
+                        if (chatroomData.messages.length > 0) {
+                            for (let x of chatroomData.messages) {
+                                let isRespondent = x.author !== userId
+                                generateChatBubble(x.displayName, x.content, isRespondent, true, x.timestamp)
+                            }
                         }
+                        for (let x of chatroomData.participants)
+                            appendUsersList(x.displayName, x.userId, x.status)
+                        modifyClassName(['invisible'], ['visible'], { id: 'overlay' })
+    
+                        firebase.auth().currentUser.getIdToken().then(function (token) {
+                            socket.emit('connection', { userToken: token, roomId: roomId })
+                        })
                     }
-                    for (let x of chatroomData.participants)
-                        appendUsersList(x.displayName, x.userId, x.status)
-                    modifyClassName(['invisible'], ['visible'], { id: 'overlay' })
-
-                    firebase.auth().currentUser.getIdToken().then(function (token) {
-                        socket.emit('connection', { userToken: token, roomId: roomId })
-                    })
                 })
                 .catch(error => console.log(error))
         })
