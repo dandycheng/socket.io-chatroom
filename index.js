@@ -197,7 +197,15 @@ app.get('/exportChatData', function (req, res) {
                         if (response || isAdmin) {
                             db.getCollectionData('chatroomDb', 'chatroom', { roomId: roomId })
                                 .then(function (data) {
-                                    res.write(JSON.stringify(data, null, 2))
+                                    console.log(data)
+                                    if (data.length > 0){
+                                        res.write(JSON.stringify(data, null, 2))
+                                    }else{
+                                        res.status(404).send({
+                                            status: -1,
+                                            result: 'export-chat/room-id-not-found'
+                                        })
+                                    }
                                     res.end()
                                 })
                         }
