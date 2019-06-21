@@ -26,12 +26,14 @@ signUpBtn.onclick = e => {
 	let validated = false, lengthValidation = 1
 	for (let x of validation) {
 		lengthValidation *= x.value.length
-		if (lengthValidation) {
+		if (lengthValidation !== 0) {
 			if (passwdInput.value.length < 6 || passwdInput.value !== confirmPasswdInput.value) {
 				responseMsg.textContent = (passwdInput.value.length < 6) ? 'Password must be at least 6 characters long' : 'Password does not match'
 				validated = false
 			} else
 				validated = true
+		}else{
+			responseMsg.textContent = 'Fields cannot be empty'
 		}
 	}
 	if (validated) {
