@@ -21,6 +21,7 @@ let roomId = url.searchParams.get('roomId')
 firebase.auth().onAuthStateChanged(function (user) {
     if (user) {
         initChatroom()
+        getChatroomData()
     }
 })
 
@@ -91,7 +92,6 @@ function initChatroom() {
                 socket.removeAllListeners()
                 initChatroom()
             })
-            getChatroomData()
         })
 }
 
@@ -170,6 +170,11 @@ exportChat.onclick = () => {
                     window.open(`${window.origin}/exportChatData?roomId=${roomId}&token=${token}`)
                     responseMsg.innerText = 'Chat exported'
                     modifyClassName(['invisible'], ['visible'], { id: 'overlay' })
+                } else {
+                    responseMsg.innerText = "You don't have enough privileges to export chat data"
+                    setTimeout(() => {
+                        modifyClassName(['invisible'], ['visible'], { id: 'overlay' })
+                    }, 2000)
                 }
             })
     })

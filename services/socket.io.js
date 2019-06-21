@@ -25,7 +25,6 @@ exports.initSocket = function (socket) {
 
     socket.on('sendMessage', function sendMessage(chatMessageConfig) {
         console.log('SEND MESSAGE LISTENTER CALLED\nMessage data:', chatMessageConfig)
-
         // Updates chatroom database
         firebase.verifyIdToken(chatMessageConfig.userData.userToken)
             .then(function (userData) {
@@ -56,12 +55,12 @@ exports.initSocket = function (socket) {
                 .then(function (result) {
                     console.log('EMITTING "leaveRoomAck"')
                     if (result) {
-                        console.log('EMITTING "updateUserStatus"\nData:\n', userStatus)
                         let userStatus = {
                             userId: userData.user_id,
                             isOnline: false,
                             isParticipant: false
                         }
+                        console.log('EMITTING "updateUserStatus"\nData:\n', userStatus)
                         socket.broadcast.emit('updateUserStatus', userStatus)
                         socket.emit('leaveRoomAck', {
                             status: 1,

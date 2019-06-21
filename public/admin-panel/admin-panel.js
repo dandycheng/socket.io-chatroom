@@ -44,10 +44,11 @@ function getChatData(roomId) {
     exportChatResponseMsg.textContent = 'Fetching chatroom data...'
     firebase.auth().currentUser.getIdToken()
         .then(function (token) {
-            let roomDataLink = `http://localhost:8080/exportChatData?roomId=${roomId}&token=${token}`
+            let roomDataLink = `${window.origin}/exportChatData?roomId=${roomId}&token=${token}`
             fetch(roomDataLink)
                 .then(response => response.json())
                 .then(function (data) {
+                    console.log(data)
                     if (data.status < 0) {
                         modifyClassName(['text-danger'], ['text-success','text-secondary'], { id: 'export-chat-response' })
                         exportChatResponseMsg.textContent = 'Room ID not found'

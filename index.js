@@ -35,10 +35,8 @@ app.post('/signUp', function (req, res) {
 
 app.get('/auth', function (req, res) {
     /** Includes "token" */let token = req.query.token
-    util.log(39, 'data (/auth)', token)
     firebase.verifyIdToken(token).then(function (userData) {
         db.getOneDocumentData('usersDb', 'users', { userId: userData.user_id }).then(function (userDataDb) {
-            console.log(userDataDb)
             return res.status(200).send({ isAdmin: userDataDb.isAdmin, url: 'admin-panel/admin-panel.html' })
         })
     })
@@ -144,11 +142,9 @@ app.post('/getChatroomData', function (req, res) {
      *  Gets chatroom data upon creating or joining, returns messages and participants' display names
      */
     /** Includes "roomId" and "userToken" */let postData = req.body
-    util.log(138, 'postData', postData)
     firebase.verifyIdToken(postData.userToken).then(function (token) {
         if (token) {
             db.hasKeyData('chatroomDb', 'chatroom', { participants: token.user_id, roomId: postData.roomId }).then(function (result) {
-                util.log(144, 'hasKeyData (index.js) /getChatroomData', result)
                 if (result) {
                     // Update user online status on chatroom join
                     db.updateOneDocField('usersDb', 'users', { userId: token.user_id }, { status: 'online' })
@@ -173,10 +169,6 @@ app.post('/getChatroomData', function (req, res) {
     })
 })
 
-app.get('/auth', function (req, res) {
-    userToken = req.query.userToken
-    db.hasKeyData('')
-})
 
 app.get('/exportChatData', function (req, res) {
     util.log(179, '/exportChatData', req.query)
@@ -190,8 +182,10 @@ app.get('/exportChatData', function (req, res) {
                 isAdmin = userData.isAdmin
             })
             .then(function () {
+                // Only hosts have privilege to export chat
                 db.hasKeyData('chatroomDb', 'chatroom', { roomId: roomId, host: userData.user_id })
                     .then(function (response) {
+                        console.log(response)
                         if (response || isAdmin) {
                             db.getCollectionData('chatroomDb', 'chatroom', { roomId: roomId })
                                 .then(function (data) {
@@ -199,13 +193,15 @@ app.get('/exportChatData', function (req, res) {
                                     if (data.length > 0){
                                         res.write(JSON.stringify(data, null, 2))
                                     }else{
-                                        res.status(404).send({
+                                        res.send({
                                             status: -1,
                                             result: 'export-chat/room-id-not-found'
                                         })
                                     }
                                     res.end()
                                 })
+                        }else{
+                            res.status(403).send()
                         }
                     })
             })
