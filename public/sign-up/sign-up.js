@@ -6,7 +6,8 @@ const usernameInput = document.getElementById('username')
 const emailInput = document.getElementById('email')
 const passwdInput = document.getElementById('passwd')
 const confirmPasswdInput = document.getElementById('confirm-passwd')
-
+const backToLoginLink = document.getElementById('back-to-login-link')
+backToLoginLink.href = `${window.origin}/login/login.html`
 document.body.onload = () => signUpWrapper.style.transform = 'translate(0)'
 
 
@@ -40,16 +41,16 @@ signUpBtn.onclick = e => {
 		e.preventDefault()
 		firebase.auth().createUserWithEmailAndPassword(emailInput.value, passwdInput.value)
 			.then(function () {
-				firebase.auth().currentUser.updateProfile({ displayName: usernameInput.value })
+				firebase.auth().currentUser.updateProfile({ displayName: usernameInput.value }).then(data => console.log(data))
 				modifyClassName(['text-success'], ['text-danger'], { id: 'response-msg' })
 				responseMsg.textContent = 'Successfully registered!'
-				fetch('http://localhost:8080/signUp', {
+				fetch(`${window.origin}/signUp`, {
 					method: 'POST',
 					headers: {
 						'Content-Type': 'application/json'
 					},
 					body: JSON.stringify({
-						displayName: usernameInput.value,
+						displayName: firebase.auth().currentUser.displayName,
 						userId: firebase.auth().currentUser.uid
 					})
 				})

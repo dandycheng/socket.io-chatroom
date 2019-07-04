@@ -2,7 +2,9 @@ const emailInput = document.getElementById('email-input')
 const passwdInput = document.getElementById('passwd-input')
 const loginBtn = document.getElementById('login-btn')
 const errorMsg = document.getElementById('error-msg')
+const signUpLink = document.getElementById('sign-up-link')
 
+signUpLink.href = `${window.origin}/sign-up/sign-up.html`
 loginBtn.onclick = e => {
     e.preventDefault()
     signIn()
@@ -22,7 +24,7 @@ function signIn() {
         firebase.auth().onAuthStateChanged(function (user) {
             if (user) {
                 firebase.auth().currentUser.getIdToken().then(function (token) {
-                    fetch(`/auth?token=${token}`)
+                    fetch(`${window.origin}/auth?token=${token}`)
                         .then(response => response.json())
                         .then(function (data) {
                             if (data.isAdmin) {
@@ -32,7 +34,7 @@ function signIn() {
                                 window.location = `${window.origin}/dashboard/dashboard.html`
                             }
                         })
-                        .catch(error => reject(error))
+                        .catch(error => console.log(error))
                 })
             }
         })

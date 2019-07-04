@@ -59,8 +59,6 @@ function initChatroom() {
                     window.location = `${window.origin}/dashboard/dashboard.html`
                 }
             })
-
-
             // Socket connection
             socket.on('updateUserStatus', function (userStatusData) {
                 if (document.getElementById(userStatusData.userId)) {
@@ -128,6 +126,7 @@ function getChatroomData() {
             })
                 .then(response => response.json())
                 .then(function (chatroomData) {
+                    console.log(chatroomData)
                     if(chatroomData.result && chatroomData.result.includes('not-a-participant')){
                         responseMsg.innerText = "NO ACCESS\nYou are not a participant of this chatroom."
                         modifyClassName(['visible'], ['invisible'], { id: 'overlay' })

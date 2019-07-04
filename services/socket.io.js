@@ -8,7 +8,8 @@ exports.initSocket = function (socket) {
     let nspData
 
     socket.on('connection', function (connectionData) {
-        console.log('NSP CONNECTION LISTENER CALLED')
+        console.log('CONNECTED')
+        console.log(connectionData)
         nspData = {
             userToken: connectionData.userToken,
             roomId: connectionData.roomId
@@ -19,6 +20,7 @@ exports.initSocket = function (socket) {
                 displayName: userData.name,
                 status: 'online'
             }
+            console.log('line 23',userStatus)
             socket.broadcast.emit('userJoin', userStatus)
         })
     })
@@ -85,7 +87,7 @@ exports.initSocket = function (socket) {
     
     // Socket connection
     socket.on('disconnect', function () {
-        console.log('USER DISCONNECTED')
+        console.log(nspData)
         firebase.verifyIdToken(nspData.userToken).then(function (userData) {
             db.updateOneDocField('usersDb', 'users', { userId: userData.user_id }, { status: 'offline' })
             db.hasKeyData('chatroomDb', 'chatroom', { participants: userData.user_id }).then(function (response) {
@@ -95,7 +97,6 @@ exports.initSocket = function (socket) {
                         isOnline: false,
                         isParticipant: response
                     }
-                    console.log('EMITTING "updateUserStatus"', userStatus)
                     socket.broadcast.emit('updateUserStatus', userStatus)
                 }
             })

@@ -26,18 +26,17 @@ exports.verifyIdToken = function (token) {
 }
 
 /** Retrieves user data from Firebase based on user ID  */
-exports.getUserData = function (/**@type Array.<String> */userIds) {
-    console.log('getuserdata')
+exports.getUserData = function (/**@type Array.<String> */userData) {
+    console.log(userData)
     return new Promise(function (resolve, reject) {
         let users = []
         let promises = []
-        for(let x of userIds){
-            console.log(userIds)
+        for(let x of userData){
             let newPromise = new Promise(function(resolve,reject){
                 firebase.auth().getUser(x)
                     .then(function(userData){
-                        db.getOneDocumentData('usersDb', 'users', { userId: x }).then(function (userDataDb) {
-                            resolve({ userId: x, displayName: userData.displayName, email: userData.email, status:userDataDb.status})
+                        db.getOneDocumentData('usersDb', 'users', { userId: userData.uid }).then(function (userDataDb) {
+                            resolve({ userId: userData.uid, displayName: userData.displayName, email: userData.email, status:userDataDb.status})
                         .catch(error => reject(error))
                     })
                     .catch(error => reject(error))

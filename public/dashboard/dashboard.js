@@ -106,7 +106,7 @@ function initChatroomFetch(/** Value retrieved from input box */roomInput, isJoi
 
 function newChatroom() {
     firebase.auth().currentUser.getIdToken().then(function (token) {
-        fetch("http://localhost:8080/newChatroom", {
+        fetch(`${window.origin}/newChatroom`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -140,6 +140,7 @@ function newChatroom() {
 function joinExistingChatroom(roomId) {
     console.log(roomId)
     firebase.auth().currentUser.getIdToken().then(token => {
+        console.log(token)
         fetch(`${window.origin}/joinRoom`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

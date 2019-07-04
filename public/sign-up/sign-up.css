@@ -22,7 +22,7 @@ input{
 input:focus{
 	border-bottom-color:#00f;
 }
-a[href*='login']{
+#back-to-login-link{
 	top:0;
 	left:0;
 }

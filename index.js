@@ -37,7 +37,7 @@ app.get('/auth', function (req, res) {
     /** Includes "token" */let token = req.query.token
     firebase.verifyIdToken(token).then(function (userData) {
         db.getOneDocumentData('usersDb', 'users', { userId: userData.user_id }).then(function (userDataDb) {
-            return res.status(200).send({ isAdmin: userDataDb.isAdmin, url: 'admin-panel/admin-panel.html' })
+            return res.send({ isAdmin: userDataDb.isAdmin, url: 'admin-panel/admin-panel.html' })
         })
     })
 })
@@ -99,13 +99,13 @@ app.post('/newChatroom', function (req, res) {
             db.insertDocument('chatroomDb', 'chatroom', {
                 roomName: postData.roomName,
                 roomId: newRoomId,
-                participants: [userData.user_id],
+                participants: [userData.uid],
                 state: 'active',
-                host: userData.user_id,
+                host: userData.uid,
                 createdAt: Date.now(),
                 messages: []
             }).then(function (response) {
-                if (response){
+                if (response) {
                     res.status(200).send({
                         result: 'room-create/room-created',
                         data: { roomId: newRoomId }
@@ -118,18 +118,20 @@ app.post('/newChatroom', function (req, res) {
 
 app.post('/joinRoom', function (req, res) {
     /** @type {{userToken:string,roomId:string}} */let postData = req.body
+    console.log('line 121', postData)
     firebase.verifyIdToken(postData.userToken).then(function (userData) {
+        console.log(userData)
         if (userData) {
             db.getOneDocumentData('chatroomDb', 'chatroom', { roomId: postData.roomId })
                 .then(function (roomData) {
                     if (roomData) {
                         if (!roomData.participants.includes(userData.user_id)) {
-                            db.insertDocumentData('chatroomDb', 'chatroom', { roomId: postData.roomId }, { participants: userData.user_id })
+                            db.insertDocumentData('chatroomDb', 'chatroom', { roomId: postData.roomId }, { participants: userData.uid })
+                            res.status(200).send({
+                                status: 1,
+                                result: 'room-join/joined-room'
+                            })
                         }
-                        res.status(200).send({
-                            status: 1,
-                            result: 'room-join/joined-room'
-                        })
                     }
                 })
         }
@@ -144,10 +146,11 @@ app.post('/getChatroomData', function (req, res) {
     /** Includes "roomId" and "userToken" */let postData = req.body
     firebase.verifyIdToken(postData.userToken).then(function (token) {
         if (token) {
-            db.hasKeyData('chatroomDb', 'chatroom', { participants: token.user_id, roomId: postData.roomId }).then(function (result) {
+            console.log('LINE 153', token)
+            db.hasKeyData('chatroomDb', 'chatroom', { participants: token.uid, roomId: postData.roomId }).then(function (result) {
                 if (result) {
                     // Update user online status on chatroom join
-                    db.updateOneDocField('usersDb', 'users', { userId: token.user_id }, { status: 'online' })
+                    db.updateOneDocField('usersDb', 'users', { userId: token.uid }, { status: 'online' })
                         .catch(error => console.log(error))
                         .then(function () {
                             db.getOneDocumentData('chatroomDb', 'chatroom', {
@@ -156,7 +159,7 @@ app.post('/getChatroomData', function (req, res) {
                                 .then(function (chatroomData) {
                                     firebase.getUserData(chatroomData.participants).then(userData => {
                                         console.log(chatroomData.participants)
-                                        console.log(userData)
+                                        console.log('userdata', userData)
                                         res.status(200).send({ messages: chatroomData.messages, participants: userData })
                                     })
                                 })
@@ -164,8 +167,8 @@ app.post('/getChatroomData', function (req, res) {
                         })
                 } else
                     res.send({
-                        status:-1,
-                        result:'join-room/not-a-participant'
+                        status: -1,
+                        result: 'join-room/not-a-participant'
                     })
             })
         }
@@ -193,9 +196,9 @@ app.get('/exportChatData', function (req, res) {
                             db.getCollectionData('chatroomDb', 'chatroom', { roomId: roomId })
                                 .then(function (data) {
                                     console.log(data)
-                                    if (data.length > 0){
+                                    if (data.length > 0) {
                                         res.write(JSON.stringify(data, null, 2))
-                                    }else{
+                                    } else {
                                         res.send({
                                             status: -1,
                                             result: 'export-chat/room-id-not-found'
@@ -203,7 +206,7 @@ app.get('/exportChatData', function (req, res) {
                                     }
                                     res.end()
                                 })
-                        }else{
+                        } else {
                             res.status(403).send()
                         }
                     })
